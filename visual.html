@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Centennial Wheel Simulation</title>
+    <style>
+        #container {
+            width: 100%;
+            height: 1000px;
+            overflow-x: scroll;
+            border: 1px solid black;
+        }
+        #canvas1, #canvas2 {
+            width: 2000px; /* Set desired display width */
+            height: 500px;  /* Set desired display height */
+        }
+        .canvas-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div id="container" class="canvas-wrapper">
+        <canvas id="canvas1"></canvas>
+        <canvas id="canvas2"></canvas>
+    </div>
+    <script>
+        // Retrieve device pixel ratio
+        const dpr = window.devicePixelRatio || 1;
+
+        // Canvas setup for canvas1
+        const canvas1 = document.getElementById('canvas1');
+        const ctx1 = canvas1.getContext('2d');
+
+        // Set CSS display size
+        const canvasWidthDisplay = canvas1.clientWidth;
+        const canvasHeightDisplay = canvas1.clientHeight;
+
+        // Adjust canvas size for higher resolution
+        canvas1.width = canvasWidthDisplay * dpr;
+        canvas1.height = canvasHeightDisplay * dpr;
+
+        // Scale context to normalize drawing operations
+        ctx1.scale(dpr, dpr);
+
+        // Repeat for canvas2
+        const canvas2 = document.getElementById('canvas2');
+        const ctx2 = canvas2.getContext('2d');
+
+        const canvas2WidthDisplay = canvas2.clientWidth;
+        const canvas2HeightDisplay = canvas2.clientHeight;
+
+        canvas2.width = canvas2WidthDisplay * dpr;
+        canvas2.height = canvas2HeightDisplay * dpr;
+
+        ctx2.scale(dpr, dpr);
+
+        // Constants for the Centennial Wheel
+        const radiusFeet = 96; // Radius in feet
+        const period = 600;    // Period in seconds (10 minutes)
+        const omega = (2 * Math.PI) / period; // Angular frequency
+        const h = 100; // Adjusted horizontal center for spacing
+        const k1 = canvasHeightDisplay / 2;
+        const k2 = canvasHeightDisplay / 2;
+        let trace = [];
+        let time = 0;
+        const timeInterval = 0.5; // Time increment in seconds
+        const xScale = 5;         // Scaling factor for x to stretch the graph
+        const fontSize = 16;
+        const markerLength = 5;
+        const labelOffset = 10;
+
+        // Function to get position at time t
+        function getPosition(t) {
+            const angularPosition = omega * t - Math.PI / 2; // Adjusted for starting at 0
+            const x = h + xScale * t;
+            const y = k1 - radiusFeet * Math.sin(angularPosition); // y-position in feet
+            return { x, y };
+        }
+
+        // Drawing axes with proper labels
+        function drawAxes(ctx, canvasWidth, canvasHeight, k, axisType) {
+            ctx.save();
+            ctx.strokeStyle = 'gray';
+            ctx.lineWidth = 1;
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.fillStyle = 'black';
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            // Draw X-axis
+            ctx.beginPath();
+            ctx.moveTo(0, k);
+            ctx.lineTo(canvasWidth, k);
+            ctx.stroke();
+
+            // X-axis markers and labels (Time in minutes)
+            for (let i = 0; i <= canvasWidth; i += 100) {
+                ctx.beginPath();
+                ctx.moveTo(i, k - markerLength);
+                ctx.lineTo(i, k + markerLength);
+                ctx.stroke();
+                const timeLabel = ((i - h) / xScale / 60).toFixed(1); // Convert seconds to minutes
+                if (timeLabel >= 0) {
+                    ctx.fillText(`${timeLabel} min`, i, k + markerLength + labelOffset);
+                }
+            }
+
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+
+            // Draw Y-axis
+            ctx.beginPath();
+            ctx.moveTo(h, 0);
+            ctx.lineTo(h, canvasHeight);
+            ctx.stroke();
+
+            // Y-axis markers and labels (Height in feet)
+            for (let i = 0; i <= canvasHeight; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(h - markerLength, i);
+                ctx.lineTo(h + markerLength, i);
+                ctx.stroke();
+                const heightLabel = (radiusFeet - (i - (k - radiusFeet))).toFixed(0);
+                ctx.fillText(`${heightLabel} ft`, h - labelOffset, i);
+            }
+
+            ctx.restore();
+        }
+
+        setInterval(() => {
+            const position = getPosition(time);
+            trace.push({ x: position.x, y: position.y });
+
+            // Clear and redraw canvas1
+            ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+            drawAxes(ctx1, canvasWidthDisplay, canvasHeightDisplay, k1, 'FerrisWheel');
+
+            // Draw the Ferris wheel circle
+            ctx1.beginPath();
+            ctx1.arc(h, k1, radiusFeet, 0, 2 * Math.PI);
+            ctx1.strokeStyle = 'black';
+            ctx1.stroke();
+
+            // Draw the rotating point
+            ctx1.beginPath();
+            ctx1.arc(position.x, position.y, 5, 0, 2 * Math.PI);
+            ctx1.fillStyle = 'red';
+            ctx1.fill();
+
+            // Clear and redraw canvas2
+            ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+            drawAxes(ctx2, canvasWidthDisplay, canvasHeightDisplay, k2, 'Sinusoidal');
+
+            // Draw the sinusoidal path on canvas2
+            ctx2.beginPath();
+            for (let i = 0; i < trace.length; i++) {
+                const pos = trace[i];
+                const sinY = pos.y;
+                if (i === 0) {
+                    ctx2.moveTo(pos.x, sinY);
+                } else {
+                    ctx2.lineTo(pos.x, sinY);
+                }
+            }
+            ctx2.strokeStyle = 'green';
+            ctx2.lineWidth = 2;
+            ctx2.stroke();
+
+            time += timeInterval;
+
+            // Remove old points to prevent overflow
+            if (position.x > canvasWidthDisplay) {
+                trace.shift();
+            }
+        }, 100);
+    </script>
+</body>
+</html>
